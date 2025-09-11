@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buscador de Artistas</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background-color: #121212;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        .search-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        #artist-search {
+            width: 80%;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #333;
+            border-radius: 5px;
+            background-color: #333;
+            color: white;
+        }
+
+        .artist-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 20px;
+            justify-content: center;
+        }
+
+        .artist-card {
+            width: 130px;
+            height: 200px;
+            position: relative;
+            overflow: hidden;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+            margin: auto;
+            background-color: #212121;
+        }
+
+        .artist-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+
+        .artist-card:hover img {
+            transform: scale(1.05);
+        }
+
+        .artist-title {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            text-align: center;
+            font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            transform: translateX(100%);
+            transition: transform 0.5s ease-in-out;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .overlay.active {
+            transform: translateX(0);
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 60px;
+            cursor: pointer;
+            z-index: 1001;
+        }
+
+        /* Estilos para el contenedor del anuncio */
+        .ad-content {
+            width: 90%;
+            max-width: 600px;
+            background: #212121;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.8);
+            text-align: center;
+        }
+
+        .ad-content #continue-btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin-top: 20px;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .ad-content #continue-btn:hover {
+            background-color: #0056b3;
+        }
+
+        .artist-detail-content {
+            width: 90%;
+            max-width: 800px;
+            background: #212121;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            height: 90vh;
+        }
+
+        .grid-controls {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 15px 0;
+            background-color: transparent;
+            z-index: 999;
+            transition: opacity 0.3s ease;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .grid-controls.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .grid-controls button {
+            background-color: transparent;
+            border: none;
+            color: white;
+            font-size: 30px;
+            padding: 10px 20px;
+            margin: 0 10px;
+            cursor: pointer;
+            transition: transform 0.2s ease, filter 0.2s ease;
+        }
+        .grid-controls button:hover {
+            transform: scale(1.2);
+            filter: brightness(1.2);
+        }
+        #show-section-btn {
+            border: none;
+            padding: 5px 15px;
+            border-radius: 5px;
+            font-size: 30px;
+            transition: background-color 0.2s ease;
+            color: white;
+            background-color: transparent;
+        }
+        #show-section-btn:hover {
+            background-color: rgba(255,255,255,0.2);
+        }
+
+        .section-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+        .section-controls button {
+            background-color: transparent;
+            border: none;
+            color: white;
+            font-size: 30px;
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: transform 0.2s ease, filter 0.2s ease;
+        }
+        .section-controls button:hover {
+            transform: scale(1.2);
+            filter: brightness(1.2);
+        }
+
+        .artist-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #444;
+            padding-bottom: 15px;
+            text-align: center;
+        }
+
+        .artist-header img {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-bottom: 15px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        .artist-header h2 {
+            margin: 0;
+            font-size: 28px;
+            color: white;
+            margin-top: 10px;
+        }
+        
+        #artist-views-counter {
+            font-size: 1rem;
+            color: #ccc;
+            margin-top: 5px;
+        }
+
+        .video-player-container {
+            position: relative;
+            padding-top: 56.25%;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        #youtube-player {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .video-player-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+            z-index: 1;
+        }
+
+        .video-list-container-scroll {
+            flex-grow: 1;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            padding-right: 10px;
+        }
+
+        .video-list {
+            list-style: none;
+            padding: 0;
+            margin-top: 0;
+        }
+
+        .video-list li {
+            padding: 10px 15px;
+            background-color: #333;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.2s ease;
+            color: #e0e0e0;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+
+        .video-list li:hover {
+            background-color: #555;
+            transform: translateY(-2px);
+        }
+
+        .video-thumbnail-wrapper {
+            display: flex;
+            align-items: center;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+
+        .video-thumbnail {
+            width: 80px;
+            height: 45px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+
+        .video-title-and-counter {
+            display: flex;
+            align-items: center;
+            flex-grow: 1;
+            min-width: 0;
+            justify-content: space-between;
+        }
+
+        .video-title-text {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex-shrink: 1;
+            min-width: 0;
+        }
+
+        .video-list li:before {
+            content: none;
+        }
+
+        .video-views-counter {
+            font-size: 0.9rem;
+            color: #aaa;
+            margin-left: 10px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="search-container">
+        <input type="text" id="artist-search" placeholder="Buscar artistas...">
+    </div>
+
+    <div class="artist-grid" id="artist-grid">
+    </div>
+
+    <div class="overlay" id="ads-overlay">
+        <div class="ad-content">
+            <h3 style="text-align: center;">Anuncio</h3>
+            <div id="your-adsense-ad-unit">
+                99
+            </div>
+            <button id="continue-btn">Continuar</button>
+        </div>
+    </div>
+
+    <div class="overlay" id="artist-overlay">
+        <span class="close-btn" onclick="closeOverlay('artist-overlay')">←</span>
+        <div class="artist-detail-content">
+            <div class="artist-header">
+                <img id="artist-image-overlay" src="" alt="Artist image">
+                <h2 id="artist-name-overlay"></h2>
+                <p id="artist-views-counter">Vistas: 0</p>
+            </div>
+            <div class="video-player-container">
+                <div id="youtube-player"></div>
+                <div class="video-player-overlay" onclick="togglePlayPause()"></div>
+            </div>
+            <div class="section-controls" id="section-controls" style="display: none;">
+                <button id="section-prev">⏮️</button>
+                <button id="section-play-pause">▶️</button>
+                <button id="section-next">⏭️</button>
+            </div>
+            <div class="video-list-container-scroll">
+                <ul class="video-list" id="video-list"></ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid-controls" id="grid-controls">
+        <button id="grid-prev" style="display: none;">⏮️</button>
+        <button id="grid-play-pause" style="display: none;">▶️</button>
+        <button id="grid-next" style="display: none;">⏭️</button>
+        <button id="show-section-btn" style="display: none;">🎶</button>
+        <button id="stop-video" style="display: none;">◼️</button>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://www.youtube.com/iframe_api"></script>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBpmIJkkrNAEmefkVPv3mxurf7f8rHKgr4",
+            authDomain: "reproductor-edb27.firebaseapp.com",
+            databaseURL: "https://reproductor-edb27-default-rtdb.firebaseio.com",
+            projectId: "reproductor-edb27",
+            storageBucket: "reproductor-edb27.firebasestorage.app",
+            messagingSenderId: "696556006955",
+            appId: "1:696556006955:web:89e30c10ee967a4bfd446e",
+            measurementId: "G-XF4291LQGY",
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const artistsRef = database.ref('artists').orderByChild('order');
+        const adsRef = database.ref('ads/preroll');
+
+        const artistGrid = document.getElementById('artist-grid');
+        const searchInput = document.getElementById('artist-search');
+        const adsOverlay = document.getElementById('ads-overlay');
+        const continueBtn = document.getElementById('continue-btn');
+        const artistOverlay = document.getElementById('artist-overlay');
+        const artistImageOverlay = document.getElementById('artist-image-overlay');
+        const artistNameOverlay = document.getElementById('artist-name-overlay');
+        const artistViewsCounter = document.getElementById('artist-views-counter');
+        const videoListContainer = document.getElementById('video-list');
+        const videoPlayerContainer = document.querySelector('.video-player-container');
+
+        const sectionControls = document.getElementById('section-controls');
+        const sectionPrevButton = document.getElementById('section-prev');
+        const sectionPlayPauseButton = document.getElementById('section-play-pause');
+        const sectionNextButton = document.getElementById('section-next');
+
+        const gridControls = document.getElementById('grid-controls');
+        const gridPrevButton = document.getElementById('grid-prev');
+        const gridPlayPauseButton = document.getElementById('grid-play-pause');
+        const gridNextButton = document.getElementById('grid-next');
+        const showSectionButton = document.getElementById('show-section-btn');
+        const stopButton = document.getElementById('stop-video');
+
+        let allArtists = {};
+        let player;
+        let isPlayerReady = false;
+        let currentArtist = null;
+        let currentVideoList = [];
+        let currentVideoIndex = -1;
+        let artistListener = null;
+
+        let ads = {
+            preroll: []
+        };
+        let isAdPlaying = false;
+        let pendingVideoId = null;
+
+        artistsRef.on('value', (snapshot) => {
+            allArtists = {};
+            snapshot.forEach(childSnapshot => {
+                const artistKey = childSnapshot.key;
+                const artistData = childSnapshot.val();
+                allArtists[artistKey] = { ...artistData, key: artistKey };
+            });
+            const orderedArtists = Object.values(allArtists).sort((a, b) => a.order - b.order);
+            displayArtists(orderedArtists);
+        });
+
+        adsRef.on('value', (snapshot) => {
+            ads.preroll = [];
+            snapshot.forEach(childSnapshot => {
+                ads.preroll.push(childSnapshot.val().url);
+            });
+        });
+
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            const filteredArtists = Object.values(allArtists).filter(artist =>
+                artist.name.toLowerCase().includes(query)
+            );
+            const orderedFilteredArtists = filteredArtists.sort((a, b) => a.order - b.order);
+            displayArtists(orderedFilteredArtists);
+        });
+
+        function displayArtists(artists) {
+            artistGrid.innerHTML = '';
+            if (artists.length === 0) {
+                artistGrid.innerHTML = '<p style="text-align: center; width: 100%;">No se encontraron artistas.</p>';
+            }
+            artists.forEach(artist => {
+                const card = document.createElement('div');
+                card.className = 'artist-card';
+                card.innerHTML = `
+                    <img src="${artist.image}" alt="${artist.name}">
+                    <div class="artist-title">${artist.name}</div>
+                `;
+                card.onclick = () => showArtistContent(artist);
+                artistGrid.appendChild(card);
+            });
+        }
+
+        function showArtistContent(artist) {
+            currentArtist = artist;
+
+            adsOverlay.classList.add('active');
+            gridControls.classList.remove('visible');
+        }
+        
+        function continueToArtistContent() {
+            adsOverlay.classList.remove('active');
+
+            currentVideoList = currentArtist.urls;
+            artistImageOverlay.src = currentArtist.image;
+            artistNameOverlay.textContent = currentArtist.name;
+            incrementArtistViewCount(currentArtist.key);
+
+            if (artistListener) {
+                artistListener.off();
+            }
+            artistListener = database.ref('artists/' + currentArtist.key).on('value', (snapshot) => {
+                const updatedArtist = snapshot.val();
+                if (updatedArtist) {
+                    currentVideoList = updatedArtist.urls;
+                    artistViewsCounter.textContent = `Vistas: ${updatedArtist.views || 0}`;
+
+                    videoListContainer.innerHTML = '';
+                    updatedArtist.urls.forEach((item, index) => {
+                        const li = document.createElement('li');
+                        const videoId = getYouTubeId(item.url);
+                        const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/default.jpg`;
+
+                        li.innerHTML = `
+                            <div class="video-thumbnail-wrapper">
+                                <img src="${thumbnailUrl}" alt="Miniatura del video" class="video-thumbnail">
+                            </div>
+                            <div class="video-title-and-counter">
+                                <span class="video-title-text">${item.title}</span>
+                                <span class="video-views-counter">${item.views || 0} vistas</span>
+                            </div>
+                        `;
+                        li.onclick = () => {
+                            currentVideoIndex = index;
+                            playWithPreroll(item.url);
+                            showSectionControls();
+                        };
+                        videoListContainer.appendChild(li);
+                    });
+                }
+            });
+
+            artistOverlay.classList.add('active');
+            showSectionButton.style.display = 'none';
+            stopButton.style.display = 'none';
+        }
+
+        continueBtn.addEventListener('click', continueToArtistContent);
+
+        function incrementArtistViewCount(artistId) {
+            const viewsRef = database.ref(`artists/${artistId}/views`);
+            viewsRef.transaction((currentViews) => {
+                return (currentViews || 0) + 1;
+            });
+        }
+        
+        function incrementVideoViewCount(artistId, videoIndex) {
+            const viewsRef = database.ref(`artists/${artistId}/urls/${videoIndex}/views`);
+            viewsRef.transaction((currentViews) => {
+                return (currentViews || 0) + 1;
+            });
+        }
+
+        function showSectionControls() {
+            videoPlayerContainer.style.display = 'block';
+            sectionControls.style.display = 'flex';
+            
+            if (player && player.getPlayerState() !== -1) {
+                gridControls.classList.add('visible');
+                gridPrevButton.style.display = 'inline-block';
+                gridNextButton.style.display = 'inline-block';
+                gridPlayPauseButton.style.display = 'inline-block';
+                stopButton.style.display = 'inline-block';
+                showSectionButton.style.display = 'inline-block';
+            }
+        }
+
+        function showGridControls() {
+            sectionControls.style.display = 'none';
+            artistOverlay.classList.remove('active');
+
+            if (artistListener) {
+                artistListener.off();
+                artistListener = null;
+            }
+
+            if (player && player.getPlayerState() !== -1) {
+                gridControls.classList.add('visible');
+                gridPrevButton.style.display = 'inline-block';
+                gridNextButton.style.display = 'inline-block';
+                gridPlayPauseButton.style.display = 'inline-block';
+                stopButton.style.display = 'inline-block';
+                showSectionButton.style.display = 'inline-block';
+            } else {
+                gridControls.classList.remove('visible');
+                gridPrevButton.style.display = 'none';
+                gridNextButton.style.display = 'none';
+                gridPlayPauseButton.style.display = 'none';
+                stopButton.style.display = 'none';
+                showSectionButton.style.display = 'none';
+            }
+        }
+
+        function playWithPreroll(url) {
+            if (!isPlayerReady) {
+                console.error("YouTube Player is not ready yet.");
+                return;
+            }
+
+            pendingVideoId = getYouTubeId(url);
+
+            if (ads.preroll.length > 0) {
+                const randomIndex = Math.floor(Math.random() * ads.preroll.length);
+                const randomAdUrl = ads.preroll[randomIndex];
+                const adVideoId = getYouTubeId(randomAdUrl);
+                isAdPlaying = true;
+                player.loadVideoById(adVideoId);
+            } else {
+                isAdPlaying = false;
+                loadVideo(url);
+            }
+
+            showSectionControls();
+        }
+
+        function loadVideo(url) {
+            if (!isPlayerReady) {
+                console.error("YouTube Player is not ready yet.");
+                return;
+            }
+            
+            gridControls.classList.add('visible');
+            gridPrevButton.style.display = 'inline-block';
+            gridNextButton.style.display = 'inline-block';
+            gridPlayPauseButton.style.display = 'inline-block';
+            stopButton.style.display = 'inline-block';
+            showSectionButton.style.display = 'inline-block';
+
+            const urlType = getUrlType(url);
+            const videoId = getYouTubeId(url);
+
+            if (urlType === 'playlist') {
+                const playlistIdMatch = url.match(/list=([a-zA-Z0-9_-]+)/);
+                if (playlistIdMatch && playlistIdMatch[1]) {
+                    player.loadPlaylist({
+                        list: playlistIdMatch[1],
+                        listType: 'playlist'
+                    });
+                }
+            } else if (urlType === 'video') {
+                if (videoId) {
+                    player.loadVideoById(videoId);
+                }
+            }
+        }
+
+        function getUrlType(url) {
+            if (url.includes('list=')) return 'playlist';
+            if (url.includes('watch?v=') || url.includes('youtu.be/')) return 'video';
+            return 'unknown';
+        }
+
+        window.onYouTubeIframeAPIReady = function() {
+            player = new YT.Player('youtube-player', {
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange
+                }
+            });
+        };
+
+        function onPlayerReady(event) {
+            isPlayerReady = true;
+
+            sectionPlayPauseButton.onclick = togglePlayPause;
+            sectionPrevButton.onclick = playPreviousVideo;
+            sectionNextButton.onclick = playNextVideo;
+
+            gridPlayPauseButton.onclick = togglePlayPause;
+            gridPrevButton.onclick = playPreviousVideo;
+            gridNextButton.onclick = playNextVideo;
+            stopButton.onclick = stopAndHideControls;
+            showSectionButton.onclick = () => {
+                if(currentArtist) {
+                    artistOverlay.classList.add('active');
+                    showSectionControls();
+                }
+            };
+        }
+
+        function onPlayerStateChange(event) {
+            if (event.data == YT.PlayerState.PLAYING) {
+                sectionPlayPauseButton.textContent = '⏸️';
+                gridPlayPauseButton.textContent = '⏸️';
+                
+                if (currentArtist && currentVideoList.length > 0) {
+                    const currentPlayingUrl = player.getVideoUrl();
+                    const videoId = getYouTubeId(currentPlayingUrl);
+                    if (videoId) {
+                        const videoIndex = currentVideoList.findIndex(item => getYouTubeId(item.url) === videoId);
+                        if (videoIndex !== -1) {
+                            currentVideoIndex = videoIndex;
+                            incrementVideoViewCount(currentArtist.key, currentVideoIndex);
+                        }
+                    }
+                }
+            } else if (event.data == YT.PlayerState.ENDED) {
+                if (isAdPlaying) {
+                    isAdPlaying = false;
+                    loadVideo(currentVideoList[currentVideoIndex].url);
+                } else {
+                    playNextVideo();
+                }
+            } else {
+                sectionPlayPauseButton.textContent = '▶️';
+                gridPlayPauseButton.textContent = '▶️';
+            }
+        }
+
+        function togglePlayPause() {
+            if (!player) return;
+            const playerState = player.getPlayerState();
+            if (playerState === YT.PlayerState.PLAYING) {
+                player.pauseVideo();
+            } else {
+                player.playVideo();
+            }
+        }
+
+        function playPreviousVideo() {
+            if (!player || currentVideoList.length === 0) return;
+
+            if (player.getPlaylist && player.getPlaylistId()) {
+                player.previousVideo();
+            } else {
+                currentVideoIndex--;
+                if (currentVideoIndex < 0) {
+                    currentVideoIndex = currentVideoList.length - 1;
+                }
+                playWithPreroll(currentVideoList[currentVideoIndex].url);
+            }
+        }
+
+        function playNextVideo() {
+            if (!player || currentVideoList.length === 0) return;
+
+            if (player.getPlaylist && player.getPlaylistId()) {
+                player.nextVideo();
+            } else {
+                currentVideoIndex++;
+                if (currentVideoIndex >= currentVideoList.length) {
+                    currentVideoIndex = 0;
+                }
+                playWithPreroll(currentVideoList[currentVideoIndex].url);
+            }
+        }
+
+        function stopAndHideControls() {
+            if (player) {
+                player.stopVideo();
+            }
+            sectionControls.style.display = 'none';
+            gridControls.classList.remove('visible');
+            videoPlayerContainer.style.display = 'none';
+            showSectionButton.style.display = 'none';
+
+            gridPrevButton.style.display = 'none';
+            gridPlayPauseButton.style.display = 'none';
+            gridNextButton.style.display = 'none';
+            stopButton.style.display = 'none';
+            showSectionButton.style.display = 'none';
+            currentArtist = null;
+
+            if (artistListener) {
+                artistListener.off();
+                artistListener = null;
+            }
+        }
+
+        function closeOverlay(overlayId) {
+            const overlay = document.getElementById(overlayId);
+            overlay.classList.remove('active');
+            if (overlayId === 'artist-overlay') {
+                showGridControls();
+            }
+        }
+
+        function getYouTubeId(url) {
+            const videoIdMatch = url.match(/(?:youtu\.be\/|v=|embed\/)([a-zA-Z0-9_-]+)/);
+            return videoIdMatch ? videoIdMatch[1] : null;
+        }
+    </script>
+</body>
+</html>
