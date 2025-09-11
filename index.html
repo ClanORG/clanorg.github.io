@@ -357,18 +357,7 @@
         <div class="ad-content">
             <h3 style="text-align: center;">Anuncio</h3>
             <div id="your-adsense-ad-unit">
-                <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7067131664344297"
-                     crossorigin="anonymous"></script>
-                <ins class="adsbygoogle"
-                     style="display:block"
-                     data-ad-client="ca-pub-7067131664344297"
-                     data-ad-slot="8666484461"
-                     data-ad-format="auto"
-                     data-full-width-responsive="true"></ins>
-                <script>
-                     (adsbygoogle = window.adsbygoogle || []).push({});
-                </script>
-            </div>
+                </div>
             <button id="continue-btn">Continuar</button>
         </div>
     </div>
@@ -409,8 +398,9 @@
     <script src="https://www.youtube.com/iframe_api"></script>
 
     <script>
+        // Configuración de Firebase
         const firebaseConfig = {
-            apiKey: "",
+            apiKey: "AIzaSyBpmIJkkrNAEmefkVPv3mxurf7f8rHKgr4",
             authDomain: "reproductor-edb27.firebaseapp.com",
             databaseURL: "https://reproductor-edb27-default-rtdb.firebaseio.com",
             projectId: "reproductor-edb27",
@@ -423,8 +413,9 @@
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
         const artistsRef = database.ref('artists').orderByChild('order');
-        const adsRef = database.ref('ads/preroll');
+        const adsRef = database.ref('ads/preroll'); // Referencia para los anuncios preroll
 
+        // Elementos del DOM
         const artistGrid = document.getElementById('artist-grid');
         const searchInput = document.getElementById('artist-search');
         const adsOverlay = document.getElementById('ads-overlay');
@@ -435,6 +426,7 @@
         const artistViewsCounter = document.getElementById('artist-views-counter');
         const videoListContainer = document.getElementById('video-list');
         const videoPlayerContainer = document.querySelector('.video-player-container');
+        const adUnitContainer = document.getElementById('your-adsense-ad-unit');
 
         const sectionControls = document.getElementById('section-controls');
         const sectionPrevButton = document.getElementById('section-prev');
@@ -448,6 +440,7 @@
         const showSectionButton = document.getElementById('show-section-btn');
         const stopButton = document.getElementById('stop-video');
 
+        // Variables de estado
         let allArtists = {};
         let player;
         let isPlayerReady = false;
@@ -462,24 +455,50 @@
         let isAdPlaying = false;
         let pendingVideoId = null;
 
+        // Cargar script de AdSense de forma asíncrona
+        function loadAdsenseScript() {
+            const script = document.createElement('script');
+            script.async = true;
+            script.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7067131664344297";
+            script.crossOrigin = "anonymous";
+            document.head.appendChild(script);
+        }
+
+        // Cargar datos de artistas desde Firebase
         artistsRef.on('value', (snapshot) => {
+            console.log("Cargando datos de artistas...");
             allArtists = {};
-            snapshot.forEach(childSnapshot => {
-                const artistKey = childSnapshot.key;
-                const artistData = childSnapshot.val();
-                allArtists[artistKey] = { ...artistData, key: artistKey };
-            });
-            const orderedArtists = Object.values(allArtists).sort((a, b) => a.order - b.order);
-            displayArtists(orderedArtists);
+            if (snapshot.exists()) {
+                snapshot.forEach(childSnapshot => {
+                    const artistKey = childSnapshot.key;
+                    const artistData = childSnapshot.val();
+                    allArtists[artistKey] = { ...artistData, key: artistKey };
+                });
+                const orderedArtists = Object.values(allArtists).sort((a, b) => a.order - b.order);
+                displayArtists(orderedArtists);
+                console.log("Artistas cargados con éxito.");
+            } else {
+                artistGrid.innerHTML = '<p style="text-align: center; width: 100%;">No hay artistas en la base de datos de Firebase.</p>';
+                console.warn("No se encontraron artistas en la base de datos de Firebase.");
+            }
+        }, (error) => {
+            console.error("Error al cargar los datos de Firebase:", error);
+            artistGrid.innerHTML = '<p style="text-align: center; width: 100%;">Error al conectar con la base de datos.</p>';
         });
 
+        // Cargar URLs de anuncios preroll
         adsRef.on('value', (snapshot) => {
             ads.preroll = [];
             snapshot.forEach(childSnapshot => {
                 ads.preroll.push(childSnapshot.val().url);
             });
+            // Una vez que los anuncios están cargados, intentar inicializar AdSense si hay alguno
+            if (ads.preroll.length > 0) {
+                loadAdsenseScript();
+            }
         });
 
+        // Event listener para el buscador de artistas
         searchInput.addEventListener('input', (e) => {
             const query = e.target.value.toLowerCase();
             const filteredArtists = Object.values(allArtists).filter(artist =>
@@ -489,6 +508,7 @@
             displayArtists(orderedFilteredArtists);
         });
 
+        // Función para mostrar los artistas en la cuadrícula
         function displayArtists(artists) {
             artistGrid.innerHTML = '';
             if (artists.length === 0) {
@@ -506,17 +526,45 @@
             });
         }
 
+        // Función para mostrar la superposición de anuncios o ir directamente al contenido
         function showArtistContent(artist) {
-            console.log("Clic en artista, mostrando anuncio...");
+            console.log("Clic en artista. Verificando anuncios...");
             currentArtist = artist;
 
-            adsOverlay.classList.add('active');
-            gridControls.classList.remove('visible');
+            if (ads.preroll.length > 0) {
+                // Si hay anuncios, mostramos el overlay de anuncios
+                adsOverlay.classList.add('active');
+                gridControls.classList.remove('visible');
+                // Intentar cargar el anuncio real de AdSense
+                try {
+                    adUnitContainer.innerHTML = `
+                        <ins class="adsbygoogle"
+                             style="display:block"
+                             data-ad-client="ca-pub-7067131664344297"
+                             data-ad-slot="8666484461"
+                             data-ad-format="auto"
+                             data-full-width-responsive="true"></ins>
+                    `;
+                    (window.adsbygoogle = window.adsbygoogle || []).push({});
+                    console.log("AdSense push successful.");
+                } catch (e) {
+                    console.error("Error pushing AdSense ad:", e);
+                }
+            } else {
+                // Si no hay anuncios preroll configurados, vamos directamente al contenido del artista
+                console.log("No hay anuncios preroll. Abriendo contenido del artista directamente.");
+                continueToArtistContent();
+            }
         }
         
-        function continueToArtistContent() {
+        // Event listener para el botón "Continuar" del anuncio
+        continueBtn.addEventListener('click', () => {
             adsOverlay.classList.remove('active');
+            continueToArtistContent();
+        });
 
+        // Función para mostrar la sección de detalles del artista
+        function continueToArtistContent() {
             currentVideoList = currentArtist.urls;
             artistImageOverlay.src = currentArtist.image;
             artistNameOverlay.textContent = currentArtist.name;
@@ -548,7 +596,7 @@
                         `;
                         li.onclick = () => {
                             currentVideoIndex = index;
-                            playWithPreroll(item.url);
+                            playWithPreroll(item.url); // Reproducir con preroll si aplica
                             showSectionControls();
                         };
                         videoListContainer.appendChild(li);
@@ -561,8 +609,7 @@
             stopButton.style.display = 'none';
         }
 
-        continueBtn.addEventListener('click', continueToArtistContent);
-
+        // Funciones para incrementar contadores de vistas
         function incrementArtistViewCount(artistId) {
             const viewsRef = database.ref(`artists/${artistId}/views`);
             viewsRef.transaction((currentViews) => {
@@ -577,6 +624,7 @@
             });
         }
 
+        // Funciones para controlar la visibilidad de los controles
         function showSectionControls() {
             videoPlayerContainer.style.display = 'block';
             sectionControls.style.display = 'flex';
@@ -617,6 +665,7 @@
             }
         }
 
+        // Función para reproducir video con preroll (si aplica)
         function playWithPreroll(url) {
             if (!isPlayerReady) {
                 console.error("YouTube Player is not ready yet.");
@@ -625,20 +674,24 @@
 
             pendingVideoId = getYouTubeId(url);
 
-            if (ads.preroll.length > 0) {
+            // Solo reproducir anuncio preroll si hay y no estamos ya reproduciendo uno
+            if (ads.preroll.length > 0 && !isAdPlaying) {
                 const randomIndex = Math.floor(Math.random() * ads.preroll.length);
                 const randomAdUrl = ads.preroll[randomIndex];
                 const adVideoId = getYouTubeId(randomAdUrl);
                 isAdPlaying = true;
                 player.loadVideoById(adVideoId);
+                console.log("Reproduciendo anuncio preroll.");
             } else {
                 isAdPlaying = false;
                 loadVideo(url);
+                console.log("Reproduciendo video principal.");
             }
 
             showSectionControls();
         }
 
+        // Función para cargar un video en el reproductor de YouTube
         function loadVideo(url) {
             if (!isPlayerReady) {
                 console.error("YouTube Player is not ready yet.");
@@ -670,12 +723,14 @@
             }
         }
 
+        // Determinar el tipo de URL de YouTube
         function getUrlType(url) {
             if (url.includes('list=')) return 'playlist';
             if (url.includes('watch?v=') || url.includes('youtu.be/')) return 'video';
             return 'unknown';
         }
 
+        // Inicialización del reproductor de YouTube
         window.onYouTubeIframeAPIReady = function() {
             player = new YT.Player('youtube-player', {
                 events: {
@@ -685,6 +740,7 @@
             });
         };
 
+        // Eventos del reproductor de YouTube
         function onPlayerReady(event) {
             isPlayerReady = true;
 
@@ -709,7 +765,8 @@
                 sectionPlayPauseButton.textContent = '⏸️';
                 gridPlayPauseButton.textContent = '⏸️';
                 
-                if (currentArtist && currentVideoList.length > 0) {
+                // Si el video actual no es un anuncio, incrementa el contador de vistas
+                if (currentArtist && currentVideoList.length > 0 && !isAdPlaying) {
                     const currentPlayingUrl = player.getVideoUrl();
                     const videoId = getYouTubeId(currentPlayingUrl);
                     if (videoId) {
@@ -722,9 +779,15 @@
                 }
             } else if (event.data == YT.PlayerState.ENDED) {
                 if (isAdPlaying) {
+                    console.log("Anuncio preroll terminado. Reproduciendo video principal pendiente.");
                     isAdPlaying = false;
-                    loadVideo(currentVideoList[currentVideoIndex].url);
+                    if (pendingVideoId) {
+                        // Reproduce el video que estaba pendiente después del anuncio
+                        loadVideo(currentVideoList[currentVideoIndex].url);
+                        pendingVideoId = null;
+                    }
                 } else {
+                    console.log("Video principal terminado. Reproduciendo siguiente video.");
                     playNextVideo();
                 }
             } else {
@@ -733,6 +796,7 @@
             }
         }
 
+        // Control de reproducción
         function togglePlayPause() {
             if (!player) return;
             const playerState = player.getPlayerState();
@@ -793,6 +857,7 @@
             }
         }
 
+        // Cierre de overlays
         function closeOverlay(overlayId) {
             const overlay = document.getElementById(overlayId);
             overlay.classList.remove('active');
@@ -801,6 +866,7 @@
             }
         }
 
+        // Obtener ID de YouTube de una URL
         function getYouTubeId(url) {
             const videoIdMatch = url.match(/(?:youtu\.be\/|v=|embed\/)([a-zA-Z0-9_-]+)/);
             return videoIdMatch ? videoIdMatch[1] : null;
